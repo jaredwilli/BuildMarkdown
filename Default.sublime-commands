@@ -1,21 +1,27 @@
 [
+    "caption": "BuildMarkdown: open in Sublime and Browser",
+        "command": "build_markdown",
+        "args": {
+            "target": "both"
+        }
+    },
     {
-        "caption": "Markdown Preview: preview in Browser",
-        "command": "markdown_preview",
+        "caption": "BuildMarkdown: opem in Browser",
+        "command": "build_md_browser",
         "args": {
             "target": "browser"
         }
     },
     {
-        "caption": "Markdown Preview: preview in Sublime Text",
-        "command": "markdown_preview",
+        "caption": "BuildMarkdown: open in Sublime Text",
+        "command": "build_md_sublime",
         "args": {
             "target": "sublime"
         }
     },
     {
-        "caption": "Markdown Preview: open Markdown Cheat sheet",
-        "command": "markdown_cheatsheet",
+        "caption": "BuildMarkdown: open Markdown Cheat sheet",
+        "command": "build_md_cheatsheet",
         "args": {}
     }
 ]

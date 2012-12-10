@@ -9,65 +9,34 @@ import json
 import urllib2
 
 settings = sublime.load_settings('BuildMarkdown.sublime-settings')
-
-# def getBuildMarkdownPath(view):
-#     " return a permanent full path of the temp markdown preview file "
-#     tmp_filename = '%s.html' % view.id()
-#     tmp_fullpath = os.path.join(tempfile.gettempdir(), tmp_filename)
-#     return tmp_fullpath
-
-class BuildMarkdownListener(sublime_plugin.EventListener):
-    """ update the output hml when markdown file has already been converted once """
-    def on_post_save(self, view):
-        if view.file_name().endswith(('.md', '.markdown', '.mdown')):
-            temp_file = getBuildMarkdownPath(view)
-            if os.path.isfile(temp_file):
-                # reexec markdown conversion
-                view.run_command('build_markdown', {'target': 'disk'})
-                sublime.status_message('Build Markdown file updated')
-
-class MarkdownBuild(sublime_plugin.WindowCommand):
-    def run(self):
-        #hwnd = sublime.active_window().hwnd()
-        output_html = settings.get("output_html", False)
-        open_html_in = settings.get("open_html_in", "browser")
-        use_css = s.get("use_css", True)
-        charset = s.get("charset", "UTF-8")
-
-        view = self.window.active_view()
-        if not view:
-            return
+def getBuildMarkdownPath(view):
+    " return a permanent full path of the temp markdown preview file "
+    output_html = settings.get("output_html", False)
+    # open_html_in = settings.get("open_html_in", "browser")
+    if view.file_name().endswith(('.md', '.markdown', '.mdown')):
         file_name = view.file_name()
-        if not file_name:
-            return
-
-        contents = view.substr(sublime.Region(0, view.size()))
-        md = markdown_python.markdown(contents)
-        html = '<!doctype html><html><meta charset="' + charset + '">'
-        if use_css:
-            css = os.path.join(sublime.packages_path(), 'MarkdownBuild', 'markdown.css')
-            if (os.path.isfile(css)):
-                styles = open(css, 'r').read()
-                html += '<style>' + styles + '</style>'
-        html += "<body>" + md + "</body></html>"
-
         if output_html:
             html_name = os.path.splitext(file_name)[0]
             html_name = html_name + ".html"
-            output = open(html_name, 'w')
         else:
-            output = tempfile.NamedTemporaryFile(delete=False, suffix='.html')
+            html_name = tempfile.NamedTemporaryFile(delete=False, suffix='.html')
+        return html_name
+class BuildMarkdownListener(sublime_plugin.EventListener):
+    """ update the output html when markdown file has already been converted once """
+    def on_post_save(self, view):
+            html_name = getBuildMarkdownPath(view)
+            if os.path.isfile(html_name):
+                # reexec markdown conversion
+                view.run_command('build_markdown', {'target': 'disk'})
+                sublime.status_message('BuildMarkdown file updated')
 
-        output.write(html.encode('UTF-8'))
-        output.close()
+class MarkdownCheatsheetCommand(sublime_plugin.TextCommand):
+    """ open our markdown cheat sheet in ST2"""
 
-        if open_html_in == "both":
-            webbrowser.open("file://" + output.name)
-            self.window.open_file(output.name)
-        elif open_html_in == "sublime":
-            self.window.open_file(output.name)
-        else:
-            webbrowser.open("file://" + output.name)
+    def run(self, edit):
+        cheatsheet = os.path.join(sublime.packages_path(), 'BuildMarkdown', 'sample.md')
+        self.view.window().open_file(cheatsheet)
+        sublime.status_message('Markdown cheat sheet opened')
 
 class BuildMarkdownCommand(sublime_plugin.TextCommand):
     """ preview file contents with python-markdown and your web browser"""
@@ -83,10 +52,10 @@ class BuildMarkdownCommand(sublime_plugin.TextCommand):
             if config_parser and config_parser == 'github':
                 css_filename = 'github.css'
             # path via package manager
-            css_path = os.path.join(sublime.packages_path(), 'Build Markdown', css_filename)
+            css_path = os.path.join(sublime.packages_path(), 'BuildMarkdown', css_filename)
             if not os.path.isfile(css_path):
                 # path via git repo
-                css_path = os.path.join(sublime.packages_path(), 'sublimetext-build-markdown', css_filename)
+                css_path = os.path.join(sublime.packages_path(), 'sublimetext-markdown-build', css_filename)
                 if not os.path.isfile(css_path):
                     sublime.error_message('markdown.css file not found!')
                     raise Exception("markdown.css file not found!")
@@ -115,7 +84,6 @@ class BuildMarkdownCommand(sublime_plugin.TextCommand):
         elif encoding == 'Western (Windows 1252)':
             encoding = 'windows-1252'
         contents = self.view.substr(region)
-
         config_parser = settings.get('parser')
 
         markdown_html = u'cannot convert markdown'
@@ -125,7 +93,8 @@ class BuildMarkdownCommand(sublime_plugin.TextCommand):
                 contents = contents.replace('%', '')    # see https://gist.github.com/3742011
                 data = json.dumps({"text": contents, "mode": "gfm"})
                 url = "https://api.github.com/markdown"
-                markdown_html = urllib2.urlopen(url, data).read().decode('utf-8')
+                request = urllib2.Request(url, data, {'Content-Type': 'application/json'})
+                markdown_html = urllib2.urlopen(request).read().decode('utf-8')
             except urllib2.HTTPError:
                 sublime.error_message('github API responded in an unfashion way :/')
             except urllib2.URLError:
@@ -143,27 +112,28 @@ class BuildMarkdownCommand(sublime_plugin.TextCommand):
         # check if LiveReload ST2 extension installed
         livereload_installed = ('LiveReload' in os.listdir(sublime.packages_path()))
 
-        # build the html
-        html_contents = u'<!DOCTYPE html>'
-        html_contents += '<html><head><meta charset="%s">' % encoding
-        html_contents += self.getCSS()
-        if livereload_installed:
-            html_contents += '<script>document.write(\'<script src="http://\' + (location.host || \'localhost\').split(\':\')[0] + \':35729/livereload.js?snipver=1"></\' + \'script>\')</script>'
-        html_contents += '</head><body>'
-        html_contents += markdown_html
-        html_contents += '</body>'
-
         if target in ['disk', 'browser']:
+            # build the html
+            html_contents = u'<!DOCTYPE html>'
+            html_contents += '<html><head><meta charset="%s">' % encoding
+            html_contents += self.getCSS()
+            if livereload_installed:
+                html_contents += '<script>document.write(\'<script src="http://\' + (location.host || \'localhost\').split(\':\')[0] + \':35729/livereload.js?snipver=1"></\' + \'script>\')</script>'
+            html_contents += '</head><body>'
+            html_contents += markdown_html
+            html_contents += '</body></html>'
+
             # update output html file
-            tmp_fullpath = getBuildMarkdownPath(self.view)
-            tmp_html = open(tmp_fullpath, 'w')
-            tmp_html.write(html_contents.encode(encoding))
-            tmp_html.close()
+            html_name = getBuildMarkdownPath(self.view)
+            output = open(html_name, 'w')
+            output.write(html_contents.encode(encoding))
+            output.close()
+
             # todo : livereload ?
             if target == 'browser':
                 config_browser = settings.get('browser')
                 if config_browser and config_browser != 'default':
-                    cmd = '"%s" %s' % (config_browser, tmp_fullpath)
+                    cmd = '"%s" %s' % (config_browser, html_name)
                     if sys.platform == 'darwin':
                         cmd = "open -a %s" % cmd
                     print "BuildMarkdown: executing", cmd
@@ -173,19 +143,13 @@ class BuildMarkdownCommand(sublime_plugin.TextCommand):
                     else:
                         sublime.status_message('BuildMarkdown launched in %s' % config_browser)
                 else:
-                    desktop.open(tmp_fullpath)
-                    sublime.status_message('BuildMarkdown launched in default HTML viewer')
+                    desktop.open(html_name)
+                    sublime.status_message('BuildMarkdown launched in default html viewer')
         elif target == 'sublime':
+            # build the html
+            html_contents = markdown_html
             new_view = self.view.window().new_file()
             new_edit = new_view.begin_edit()
             new_view.insert(new_edit, 0, html_contents)
             new_view.end_edit(new_edit)
             sublime.status_message('BuildMarkdown launched in sublime')
-
-
-class MarkdownCheatsheetCommand(sublime_plugin.TextCommand):
-    """ open our markdown cheat sheet in ST2"""
-    def run(self, edit):
-        cheatsheet = os.path.join(sublime.packages_path(), 'Build Markdown', 'sample.md')
-        self.view.window().open_file(cheatsheet)
-        sublime.status_message('Markdown cheat sheet opened')

@@ -1,1 +1,4 @@
-{"url": "https://github.com/jaredwilli/BuildMarkdown/", "version": "2012.11.21.11.31.35", "description": "Build Markdown plugin for Sublime Text 2"}
+{
+  "target": "markdown_build",
+  "selector": "text.html.markdown"
+}
