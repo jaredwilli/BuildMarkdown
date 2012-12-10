@@ -1,5 +1,5 @@
-Sublime Text 2 Build MarkDown
-===============================
+BuildMarkDown Plugin for Sublime Text 2
+=======================================
 
 This is a fork of the [Markdown Preview][7] Sublime Text 2 plugin and a peice of the [Markdown Build][1] plugin to enable you to preview your Markdown files in the browser as well as save the HTML file that is generated in the same directory as the Markdown file, using the same filename with .html as the extension.
 
@@ -24,8 +24,7 @@ If you have the ST2 LiveReload plugin, your browser will autorefresh the display
 
 ## Uses :
 
- - [python-markdown2][0] for markdown parsing **OR** the GitHub markdown API.
-
+ - [python-markdown2][0] for markdown parsing **OR** the [GitHub markdown API][5].
 
 ## Licence :
 
